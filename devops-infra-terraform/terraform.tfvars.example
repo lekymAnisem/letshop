@@ -1,0 +1,18 @@
+aws_region          = "ap-southeast-2"
+project_name        = "myshopee-devops"
+environment         = "dev"
+
+# IMPORTANT: replace with your own public IP /32.
+# Example: "123.123.123.123/32"
+allowed_ssh_cidr    = "0.0.0.0/0"
+allowed_web_cidr    = "0.0.0.0/0"
+
+public_key_path     = "~/.ssh/id_rsa.pub"
+
+instance_type_controller = "t3.small"
+instance_type_agent      = "c7i-flex.large"
+instance_type_monitoring = "t3.small"
+instance_type_kubernetes = "c7i-flex.large"
+
+create_kubernetes_node = true
+root_volume_size       = 30

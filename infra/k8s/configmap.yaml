@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: letshop-config
+  namespace: letshop
+data:
+  VITE_API_URL: "http://letshop-backend:5000/api"
+  PORT: "5000"
