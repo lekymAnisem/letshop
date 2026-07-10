@@ -19,6 +19,112 @@ pipeline {
             }
         }
 
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main',
+                    credentialsId: 'github-token',
+                    url: 'https://github.com/lekymAnisem/letshop.git'
+            }
+        }
+
+
+        stage('SonarQube Analysis') {
+            parallel {
+                stage('Backend') {
+                    steps {
+                        dir('backend') {
+                            withSonarQubeEnv('SonarQube') {
+                                sh '''
+                                    $SCANNER_HOME/bin/sonar-scanner \
+                                        -Dsonar.projectKey=letshop-backend \
+                                        -Dsonar.projectName="LetShop Backend"
+                                '''
+                            }
+                        }
+                    }
+                }
+
+                stage('Frontend') {
+                    steps {
+                        dir('frontend') {
+                            withSonarQubeEnv('SonarQube') {
+                                sh '''
+                                    $SCANNER_HOME/bin/sonar-scanner \
+                                        -Dsonar.projectKey=letshop-frontend \
+                                        -Dsonar.projectName="LetShop Frontend"
+                                '''
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                script {
+                    waitForQualityGate abortPipeline: false, credentialsId: 'SonarQube'
+                }
+            }
+        }
+
+        stage('Install Dependencies') {
+            parallel {
+                stage('Backend') {
+                    steps {
+                        dir('backend') {
+                            sh 'npm install'
+                        }
+                    }
+                }
+
+                stage('Frontend') {
+                    steps {
+                        dir('frontend') {
+                            sh 'npm install'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('TypeScript Check') {
+            parallel {
+                stage('Backend') {
+                    steps {
+                        dir('backend') {
+                            sh 'npm run typecheck'
+                        }
+                    }
+                }
+                stage('Frontend') {
+                    steps {
+                        dir('frontend') {
+                            sh 'npx tsc -b --noEmit'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                dir('backend') {
+                    sh 'npm test'
+                }
+            }
+        }
+
+        stage('Trivy FS Scan') {
+            steps {
+                sh 'trivy fs . --format table > trivy-fs.txt || true'
+            }
+        }
+
+
+
+
+
         stage('Login to ECR') {
             steps {
                 sh """
