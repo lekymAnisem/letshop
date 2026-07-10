@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: letshop-backend
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: letshop-backend
+  ports:
+    - protocol: TCP
+      port: {{ .Values.service.backend.port }}
+      targetPort: {{ .Values.service.backend.targetPort }}
+  type: {{ .Values.service.backend.type }}
