@@ -37,7 +37,7 @@ variable "public_subnet_cidrs" {
 variable "ssh_key_name" {
   description = "Name of an existing EC2 key pair for SSH access"
   type        = string
-  default     = "/Users/admin/Downloads/my-Key.pem"
+  default     = "/Users/admin/Downloads/my-Key"
 }
 
 variable "admin_allowed_cidr_blocks" {

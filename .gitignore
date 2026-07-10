@@ -1,1 +1,14 @@
 .DS_Store
+
+# Terraform generated files
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfplan
+.terraformrc
+terraform.rc
+
+# Keep Terraform dependency lock file
+!**/.terraform.lock.hcl
