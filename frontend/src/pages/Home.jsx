@@ -1,17 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { productAPI } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-const CATEGORIES = [
-  { name: 'Electronics', icon: 'M9 3v2m6-2v2M9 3h6M5 7h14v12H5V7z' },
-  { name: 'Fashion', icon: 'M7 7h10v10H7V7z M7 3h10v4H7V3z M7 17h10v4H7v-4z' },
-  { name: 'Home & Living', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-  { name: 'Beauty', icon: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-  { name: 'Sports', icon: 'M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-  { name: 'Books', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
-];
+const CATEGORY_ICONS = {
+  'Electronics': 'M9 3v2m6-2v2M9 3h6M5 7h14v12H5V7z',
+  'Fashion': 'M7 7h10v10H7V7z M7 3h10v4H7V3z M7 17h10v4H7v-4z',
+  'Home': 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+  'Beauty': 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  'Sports': 'M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  'Books': 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
+  'Food': 'M12 2C8 2 4 5 4 9c0 2.5 1.5 4.5 3 6l2 3h6l2-3c1.5-1.5 3-3.5 3-6 0-4-4-7-8-7z',
+  'Toys': 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+  'Music': 'M9 18V5l12-2v13M9 18a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm12-4a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+  'Automotive': 'M14 16H9m6-6h.01M9 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+};
+
+const DEFAULT_ICON = 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4';
 
 export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -20,6 +26,8 @@ export default function Home() {
   const [error, setError] = useState('');
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   const [activeCategory, setActiveCategory] = useState(searchParams.get('category') || '');
+  const [categories, setCategories] = useState([]);
+  const scrollRef = useRef(null);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -45,8 +53,18 @@ export default function Home() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await productAPI.getCategories();
+      setCategories(res.data.data);
+    } catch {
+      setCategories([]);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, [searchParams]);
 
   const handleCategoryClick = (category) => {
@@ -56,6 +74,15 @@ export default function Home() {
     } else {
       setActiveCategory(category);
       setSearchParams({ category });
+    }
+  };
+
+  const scrollCategories = (direction) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({
+        left: direction * 200,
+        behavior: 'smooth',
+      });
     }
   };
 
@@ -93,23 +120,48 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Categories</h2>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat.name}
-                onClick={() => handleCategoryClick(cat.name)}
-                className={`flex flex-col items-center p-3 rounded-lg transition-colors ${
-                  activeCategory === cat.name
-                    ? 'bg-primary-50 text-primary-600 ring-2 ring-primary-500'
-                    : 'bg-gray-50 text-gray-600 hover:bg-primary-50 hover:text-primary-600'
-                }`}
-              >
-                <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={cat.icon} />
-                </svg>
-                <span className="text-xs font-medium">{cat.name}</span>
-              </button>
-            ))}
+          <div className="relative">
+            <button
+              onClick={() => scrollCategories(-1)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-md rounded-full p-1.5 hidden md:block"
+            >
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div
+              ref={scrollRef}
+              className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth pb-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {categories.map((cat) => {
+                const icon = CATEGORY_ICONS[cat] || DEFAULT_ICON;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => handleCategoryClick(cat)}
+                    className={`flex-shrink-0 flex flex-col items-center p-3 rounded-lg transition-colors min-w-[90px] ${
+                      activeCategory === cat
+                        ? 'bg-primary-50 text-primary-600 ring-2 ring-primary-500'
+                        : 'bg-gray-50 text-gray-600 hover:bg-primary-50 hover:text-primary-600'
+                    }`}
+                  >
+                    <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={icon} />
+                    </svg>
+                    <span className="text-xs font-medium whitespace-nowrap">{cat}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => scrollCategories(1)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-md rounded-full p-1.5 hidden md:block"
+            >
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
         </div>
       </section>
