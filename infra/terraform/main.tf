@@ -144,11 +144,11 @@ resource "aws_instance" "monitoring" {
 }
 
 resource "aws_ecr_repository" "backend" {
-  name                 = "${local.name_prefix}-backend"
-  image_tag_mutability = "MUTABLE"
+  name                 = var.ecr_backend_name != "" ? var.ecr_backend_name : "${local.name_prefix}-backend"
+  image_tag_mutability = var.ecr_image_tag_mutability
 
   image_scanning_configuration {
-    scan_on_push = true
+    scan_on_push = var.ecr_scan_on_push
   }
 
   force_delete = var.ecr_force_delete
@@ -157,11 +157,11 @@ resource "aws_ecr_repository" "backend" {
 }
 
 resource "aws_ecr_repository" "frontend" {
-  name                 = "${local.name_prefix}-frontend"
-  image_tag_mutability = "MUTABLE"
+  name                 = var.ecr_frontend_name != "" ? var.ecr_frontend_name : "${local.name_prefix}-frontend"
+  image_tag_mutability = var.ecr_image_tag_mutability
 
   image_scanning_configuration {
-    scan_on_push = true
+    scan_on_push = var.ecr_scan_on_push
   }
 
   force_delete = var.ecr_force_delete

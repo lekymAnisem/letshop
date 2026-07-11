@@ -101,6 +101,30 @@ variable "alertmanager_version" {
   default     = "0.27.0"
 }
 
+variable "ecr_backend_name" {
+  description = "Name for the backend ECR repository (defaults to {app_name}-{environment}-backend)"
+  type        = string
+  default     = ""
+}
+
+variable "ecr_frontend_name" {
+  description = "Name for the frontend ECR repository (defaults to {app_name}-{environment}-frontend)"
+  type        = string
+  default     = ""
+}
+
+variable "ecr_image_tag_mutability" {
+  description = "ECR image tag mutability: MUTABLE or IMMUTABLE"
+  type        = string
+  default     = "MUTABLE"
+}
+
+variable "ecr_scan_on_push" {
+  description = "Whether to scan ECR images on push"
+  type        = bool
+  default     = true
+}
+
 variable "ecr_force_delete" {
   description = "Whether Terraform can delete ECR repositories even if they contain images"
   type        = bool
