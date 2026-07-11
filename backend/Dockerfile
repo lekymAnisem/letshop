@@ -17,4 +17,4 @@ USER appuser
 
 EXPOSE 5000
 
-CMD ["npm", "start"]
+CMD npx prisma db push --accept-data-loss 2>/dev/null || true && npm start
