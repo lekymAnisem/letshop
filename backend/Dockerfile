@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
-RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
 RUN npm ci
