@@ -62,6 +62,13 @@ spec:
                 secretKeyRef:
                   name: letshop-secrets
                   key: AWS_BUCKET_NAME
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /api/health
@@ -73,7 +80,7 @@ spec:
               path: /api/health
               port: 5000
             initialDelaySeconds: 5
-            periodSeconds: 5
+            periodSeconds: 10
           resources:
             requests:
               cpu: "128m"
