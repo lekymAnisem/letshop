@@ -17,7 +17,7 @@ variable "app_name" {
 }
 
 variable "ubuntu_ami_id" {
-  description = "Ubuntu AMI ID for the CI/CD and monitoring EC2 servers"
+  description = "Ubuntu AMI ID for EC2 instances"
   type        = string
   default     = "ami-06259b63260eddc13"
 }
@@ -46,46 +46,22 @@ variable "admin_allowed_cidr_blocks" {
   default     = ["0.0.0.0/0"]
 }
 
-variable "cicd_allowed_cidr_blocks" {
-  description = "CIDR blocks allowed to access Jenkins on 8080 and SonarQube on 9000"
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
-}
-
 variable "monitoring_allowed_cidr_blocks" {
   description = "CIDR blocks allowed to access Grafana, Prometheus, and optional Alertmanager"
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
 
-variable "cicd_instance_type" {
-  description = "EC2 instance type for Server 1, the CI/CD server"
-  type        = string
-  default     = "m7i-flex.large"
-}
-
-variable "cicd_root_volume_size" {
-  description = "Root EBS volume size in GB for Server 1, the CI/CD server"
-  type        = number
-  default     = 20
-}
-
 variable "monitoring_instance_type" {
-  description = "EC2 instance type for Server 2, the monitoring server"
+  description = "EC2 instance type for the monitoring server"
   type        = string
   default     = "c7i-flex.large"
 }
 
 variable "monitoring_root_volume_size" {
-  description = "Root EBS volume size in GB for Server 2, the monitoring server"
+  description = "Root EBS volume size in GB for the monitoring server"
   type        = number
   default     = 8
-}
-
-variable "sonarqube_enabled" {
-  description = "Whether to run SonarQube on the CI/CD server"
-  type        = bool
-  default     = true
 }
 
 variable "prometheus_enabled" {

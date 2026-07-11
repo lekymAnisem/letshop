@@ -23,13 +23,46 @@ spec:
             - configMapRef:
                 name: letshop-config
           env:
-            {{- range $key, $value := .Values.secrets }}
-            - name: {{ $key }}
+            - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: letshop-secrets
-                  key: {{ $key }}
-            {{- end }}
+                  key: DATABASE_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: letshop-secrets
+                  key: JWT_SECRET
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: letshop-secrets
+                  key: ADMIN_EMAIL
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: letshop-secrets
+                  key: ADMIN_PASSWORD
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: letshop-secrets
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: letshop-secrets
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: letshop-secrets
+                  key: AWS_REGION
+            - name: AWS_BUCKET_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: letshop-secrets
+                  key: AWS_BUCKET_NAME
           livenessProbe:
             httpGet:
               path: {{ .Values.probes.backend.liveness.path }}

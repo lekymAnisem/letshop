@@ -14,10 +14,6 @@ output "ecr_frontend_url" {
   value = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${aws_ecr_repository.frontend.name}"
 }
 
-output "cicd_public_ip" {
-  value = aws_instance.cicd.public_ip
-}
-
 output "monitoring_public_ip" {
   value = aws_instance.monitoring.public_ip
 }

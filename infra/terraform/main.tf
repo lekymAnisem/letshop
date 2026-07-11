@@ -39,7 +39,7 @@ resource "aws_subnet" "public" {
   availability_zone       = "${var.aws_region}${count.index == 0 ? "a" : "b"}"
 
   tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-public-subnet-${count.index + 1}"
+    Name                                             = "${local.name_prefix}-public-subnet-${count.index + 1}"
     "kubernetes.io/cluster/${local.name_prefix}-eks" = "shared"
     "kubernetes.io/role/elb"                         = 1
   })
@@ -62,48 +62,6 @@ resource "aws_route_table_association" "public" {
   count          = length(var.public_subnet_cidrs)
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
-}
-
-resource "aws_security_group" "cicd" {
-  name        = "${local.name_prefix}-cicd-sg"
-  description = "Security group for CI/CD server (Jenkins, SonarQube)"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = var.admin_allowed_cidr_blocks
-  }
-
-  ingress {
-    description = "Jenkins UI"
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = var.cicd_allowed_cidr_blocks
-  }
-
-  ingress {
-    description = "SonarQube UI"
-    from_port   = 9000
-    to_port     = 9000
-    protocol    = "tcp"
-    cidr_blocks = var.cicd_allowed_cidr_blocks
-  }
-
-  egress {
-    description = "All outbound"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-cicd-sg"
-  })
 }
 
 resource "aws_security_group" "monitoring" {
@@ -164,25 +122,6 @@ resource "aws_key_pair" "main" {
   public_key = file(pathexpand("${var.ssh_key_name}.pub"))
 
   tags = local.common_tags
-}
-
-resource "aws_instance" "cicd" {
-  ami                         = var.ubuntu_ami_id
-  instance_type               = var.cicd_instance_type
-  subnet_id                   = aws_subnet.public[0].id
-  vpc_security_group_ids      = [aws_security_group.cicd.id]
-  key_name                    = aws_key_pair.main.key_name
-  associate_public_ip_address = true
-
-  root_block_device {
-    volume_size = var.cicd_root_volume_size
-    volume_type = "gp3"
-  }
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-cicd"
-    Role = "cicd"
-  })
 }
 
 resource "aws_instance" "monitoring" {

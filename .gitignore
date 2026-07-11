@@ -12,3 +12,6 @@ terraform.rc
 
 # Keep Terraform dependency lock file
 !**/.terraform.lock.hcl
+
+# Helm secret values (user-specific, never commit)
+helm-chart/values-secret.yaml
