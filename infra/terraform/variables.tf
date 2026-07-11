@@ -184,3 +184,9 @@ variable "eks_node_max_size" {
   type        = number
   default     = 3
 }
+
+variable "eks_admin_role_arn" {
+  description = "IAM role ARN to grant admin access to the EKS cluster (e.g. Jenkins EC2 instance role)"
+  type        = string
+  default     = ""
+}

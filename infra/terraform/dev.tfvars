@@ -16,3 +16,4 @@ eks_node_instance_types = ["c7i-flex.large"]
 eks_node_min_size       = 1
 eks_node_desired_size   = 2
 eks_node_max_size       = 3
+eks_admin_role_arn      = "arn:aws:iam::919651863390:role/instanceRole"

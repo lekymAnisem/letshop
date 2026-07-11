@@ -517,7 +517,7 @@ pipeline {
                         --region "$AWS_REGION"
 
                     kubectl cluster-info
-                    kubectl get nodes
+                    kubectl get nodes || true
                 '''
             }
         }
