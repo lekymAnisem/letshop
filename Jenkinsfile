@@ -19,7 +19,7 @@ pipeline {
 
         ECR_BACKEND   = "${APP_NAME}-${ENVIRONMENT}-backend"
         ECR_FRONTEND  = "${APP_NAME}-${ENVIRONMENT}-frontend"
-        EKS_CLUSTER   = "${APP_NAME}-${ENVIRONMENT}-eks"
+        EKS_CLUSTER   = ""letshop-dev-eks""
 
         K8S_NAMESPACE = 'letshop'
         IMAGE_TAG     = "${BUILD_NUMBER}"
