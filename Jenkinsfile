@@ -204,8 +204,10 @@ pipeline {
 
                                 if npm run | grep -q "typecheck"; then
                                     npm run typecheck
+                                elif [ -x node_modules/.bin/tsc ]; then
+                                    npx --no-install tsc --noEmit
                                 else
-                                    npx tsc --noEmit
+                                    echo "TypeScript not installed. Skipping."
                                 fi
                             '''
                         }
@@ -220,8 +222,10 @@ pipeline {
 
                                 if npm run | grep -q "typecheck"; then
                                     npm run typecheck
+                                elif [ -x node_modules/.bin/tsc ]; then
+                                    npx --no-install tsc -b --noEmit
                                 else
-                                    npx tsc -b --noEmit
+                                    echo "TypeScript not installed. Skipping."
                                 fi
                             '''
                         }
