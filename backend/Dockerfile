@@ -1,25 +1,15 @@
-FROM node:20-alpine AS build
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci
-
-COPY package*.json ./
-COPY src/ src/
-
-RUN npm run build
-
-FROM node:20-alpine AS production
+FROM node:20-alpine
 
 WORKDIR /app
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
-COPY --from=build /app/dist dist/
+COPY . .
+
+RUN npx prisma generate
 
 USER appuser
 
