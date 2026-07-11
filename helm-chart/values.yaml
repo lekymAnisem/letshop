@@ -4,13 +4,13 @@ replicas: 2
 
 images:
   backend:
-    repository: letshop-production-backend
+    repository: 919651863390.dkr.ecr.ap-southeast-2.amazonaws.com/letshop-production-backend
     tag: latest
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   frontend:
-    repository: letshop-production-frontend
+    repository: 919651863390.dkr.ecr.ap-southeast-2.amazonaws.com/letshop-production-frontend
     tag: latest
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
 
 service:
   backend:
