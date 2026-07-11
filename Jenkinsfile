@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    tools {
+        jdk 'jdk21'
+        nodejs 'node20'
+    }
+
     environment {
         AWS_REGION      = "ap-southeast-2"
         APP_NAME        = "letshop"
