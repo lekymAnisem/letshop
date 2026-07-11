@@ -25,7 +25,7 @@ pipeline {
         IMAGE_TAG     = "${BUILD_NUMBER}"
 
         // Jenkins configuration names
-        SONAR_SERVER  = 'sonar-scanner'
+        SONAR_SERVER  = 'SonarQube'
         SONAR_TOOL    = 'SonarQube'
     }
 
