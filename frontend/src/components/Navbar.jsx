@@ -51,16 +51,21 @@ export default function Navbar() {
               <div className="hidden md:flex items-center space-x-4">
                 <span className="text-white text-sm font-medium">{user.name}</span>
                 {!user.isAdmin && (
-                  <button onClick={() => navigate('/cart')} className="relative text-white hover:text-primary-100">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
-                    </svg>
-                    {itemCount > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
-                        {itemCount > 99 ? '99+' : itemCount}
-                      </span>
-                    )}
-                  </button>
+                  <>
+                    <button onClick={() => navigate('/orders')} className="text-white text-sm hover:text-primary-100">
+                      My Orders
+                    </button>
+                    <button onClick={() => navigate('/cart')} className="relative text-white hover:text-primary-100">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
+                      </svg>
+                      {itemCount > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                          {itemCount > 99 ? '99+' : itemCount}
+                        </span>
+                      )}
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() => { logout(); navigate('/'); }}
@@ -109,9 +114,14 @@ export default function Navbar() {
             <div className="space-y-2">
               <span className="block text-white text-sm">{user.name}</span>
               {!user.isAdmin && (
-                <button onClick={() => { navigate('/cart'); setMobileMenuOpen(false); }} className="block text-white text-sm">
-                  Cart ({itemCount})
-                </button>
+                <>
+                  <button onClick={() => { navigate('/orders'); setMobileMenuOpen(false); }} className="block text-white text-sm">
+                    My Orders
+                  </button>
+                  <button onClick={() => { navigate('/cart'); setMobileMenuOpen(false); }} className="block text-white text-sm">
+                    Cart ({itemCount})
+                  </button>
+                </>
               )}
               <button onClick={() => { logout(); navigate('/'); setMobileMenuOpen(false); }} className="block text-white text-sm">
                 Logout

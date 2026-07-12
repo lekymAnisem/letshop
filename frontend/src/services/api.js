@@ -52,8 +52,10 @@ export const cartAPI = {
 };
 
 export const orderAPI = {
-  checkout: () => api.post('/orders/checkout'),
+  checkout: (data) => api.post('/orders/checkout', data),
   getOrders: () => api.get('/orders'),
+  getAllOrders: (params) => api.get('/orders/all', { params }),
+  updateStatus: (id, data) => api.put(`/orders/${id}/status`, data),
 };
 
 export default api;
