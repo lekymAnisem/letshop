@@ -562,66 +562,70 @@ pipeline {
 
         stage('Deploy to EKS') {
             steps {
-                sh '''
-                    set -e
+                withAWS(credentials: 'aws-creds', region: 'ap-southeast-2') {
+                    sh '''
+                        set -e
 
-                    kubectl apply -f rendered-k8s/namespace.yaml
+                        kubectl apply -f rendered-k8s/namespace.yaml
 
-                    if [ -f rendered-k8s/configmap.yaml ]; then
-                        kubectl apply -f rendered-k8s/configmap.yaml
-                    fi
+                        if [ -f rendered-k8s/configmap.yaml ]; then
+                            kubectl apply -f rendered-k8s/configmap.yaml
+                        fi
 
-                    if [ -f rendered-k8s/secrets.yaml ]; then
-                        kubectl apply -f rendered-k8s/secrets.yaml
-                    fi
+                        if [ -f rendered-k8s/secrets.yaml ]; then
+                            kubectl apply -f rendered-k8s/secrets.yaml
+                        fi
 
-                    kubectl apply -f rendered-k8s/backend-deployment.yaml
-                    kubectl apply -f rendered-k8s/frontend-deployment.yaml
+                        kubectl apply -f rendered-k8s/backend-deployment.yaml
+                        kubectl apply -f rendered-k8s/frontend-deployment.yaml
 
-                    if [ -f rendered-k8s/backend-service.yaml ]; then
-                        kubectl apply -f rendered-k8s/backend-service.yaml
-                    fi
+                        if [ -f rendered-k8s/backend-service.yaml ]; then
+                            kubectl apply -f rendered-k8s/backend-service.yaml
+                        fi
 
-                    if [ -f rendered-k8s/frontend-service.yaml ]; then
-                        kubectl apply -f rendered-k8s/frontend-service.yaml
-                    fi
+                        if [ -f rendered-k8s/frontend-service.yaml ]; then
+                            kubectl apply -f rendered-k8s/frontend-service.yaml
+                        fi
 
-                    if [ -f rendered-k8s/ingress.yaml ]; then
-                        kubectl apply -f rendered-k8s/ingress.yaml
-                    fi
-                '''
+                        if [ -f rendered-k8s/ingress.yaml ]; then
+                            kubectl apply -f rendered-k8s/ingress.yaml
+                        fi
+                    '''
+                }
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                timeout(time: 10, unit: 'MINUTES') {
-                    sh '''
-                        set -e
+                withAWS(credentials: 'aws-creds', region: 'ap-southeast-2') {
+                    timeout(time: 10, unit: 'MINUTES') {
+                        sh '''
+                            set -e
 
-                        kubectl rollout status \
-                            deployment/letshop-backend \
-                            --namespace "$K8S_NAMESPACE" \
-                            --timeout=600s
+                            kubectl rollout status \
+                                deployment/letshop-backend \
+                                --namespace "$K8S_NAMESPACE" \
+                                --timeout=600s
 
-                        kubectl rollout status \
-                            deployment/letshop-frontend \
-                            --namespace "$K8S_NAMESPACE" \
-                            --timeout=600s
+                            kubectl rollout status \
+                                deployment/letshop-frontend \
+                                --namespace "$K8S_NAMESPACE" \
+                                --timeout=600s
 
-                        echo "Pods:"
-                        kubectl get pods \
-                            --namespace "$K8S_NAMESPACE" \
-                            -o wide
+                            echo "Pods:"
+                            kubectl get pods \
+                                --namespace "$K8S_NAMESPACE" \
+                                -o wide
 
-                        echo "Services:"
-                        kubectl get services \
-                            --namespace "$K8S_NAMESPACE"
+                            echo "Services:"
+                            kubectl get services \
+                                --namespace "$K8S_NAMESPACE"
 
-                        echo "Ingress:"
-                        kubectl get ingress \
-                            --namespace "$K8S_NAMESPACE"
-                    '''
+                            echo "Ingress:"
+                            kubectl get ingress \
+                                --namespace "$K8S_NAMESPACE"
+                        '''
+                    }
                 }
             }
         }
@@ -635,16 +639,18 @@ pipeline {
         failure {
             echo "Pipeline failed for build ${BUILD_NUMBER}"
 
-            sh '''
-                kubectl get pods \
-                    --namespace "$K8S_NAMESPACE" \
-                    -o wide 2>/dev/null || true
+            withAWS(credentials: 'aws-creds', region: 'ap-southeast-2') {
+                sh '''
+                    kubectl get pods \
+                        --namespace "$K8S_NAMESPACE" \
+                        -o wide 2>/dev/null || true
 
-                kubectl get events \
-                    --namespace "$K8S_NAMESPACE" \
-                    --sort-by=.metadata.creationTimestamp 2>/dev/null | \
-                    tail -50 || true
-            '''
+                    kubectl get events \
+                        --namespace "$K8S_NAMESPACE" \
+                        --sort-by=.metadata.creationTimestamp 2>/dev/null | \
+                        tail -50 || true
+                '''
+            }
         }
 
         always {
