@@ -17,7 +17,7 @@ pipeline {
     environment {
         AWS_REGION    = 'ap-southeast-2'
         APP_NAME      = 'letshop'
-        ENVIRONMENT   = 'production'
+        ENVIRONMENT   = 'dev'
 
         ECR_BACKEND   = "${APP_NAME}-${ENVIRONMENT}-backend"
         ECR_FRONTEND  = "${APP_NAME}-${ENVIRONMENT}-frontend"
