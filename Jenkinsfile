@@ -1,5 +1,7 @@
 pipeline {
-    agent any
+    agent {
+        label 'docker-aws-agent'
+    }
 
     options {
         skipDefaultCheckout(true)
@@ -25,7 +27,7 @@ pipeline {
         IMAGE_TAG     = "${BUILD_NUMBER}"
 
         // Jenkins configuration names
-        SONAR_SERVER  = 'SonarQube'
+        SONAR_SERVER  = 'Sonarserver'
         SONAR_TOOL    = 'SonarQube'
     }
 
