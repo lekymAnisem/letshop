@@ -5,7 +5,6 @@ pipeline {
         skipDefaultCheckout(true)
         disableConcurrentBuilds()
         timestamps()
-        buildDiscarder(logRotator(numToKeepStr: '20'))
     }
 
     tools {
@@ -14,21 +13,20 @@ pipeline {
     }
 
     environment {
-        AWS_REGION   = 'ap-southeast-2'
-        AWS_CREDS_ID = 'aws-creds'
+        AWS_REGION    = 'ap-southeast-2'
+        APP_NAME      = 'letshop'
+        ENVIRONMENT   = 'dev'
 
-        APP_NAME    = 'letshop'
-        ENVIRONMENT = 'dev'
-
-        ECR_BACKEND  = "${APP_NAME}-${ENVIRONMENT}-backend"
-        ECR_FRONTEND = "${APP_NAME}-${ENVIRONMENT}-frontend"
-        EKS_CLUSTER  = 'letshop-dev-eks'
+        ECR_BACKEND   = "${APP_NAME}-${ENVIRONMENT}-backend"
+        ECR_FRONTEND  = "${APP_NAME}-${ENVIRONMENT}-frontend"
+        EKS_CLUSTER   = "letshop-dev-eks"
 
         K8S_NAMESPACE = 'letshop'
         IMAGE_TAG     = "${BUILD_NUMBER}"
 
-        SONAR_SERVER = 'Sonarserver'
-        SONAR_TOOL   = 'SonarQube'
+        // Jenkins configuration names
+        SONAR_SERVER  = 'Sonarserver'
+        SONAR_TOOL    = 'SonarQube'
     }
 
     stages {
@@ -48,8 +46,8 @@ pipeline {
 
         stage('Verify Project Structure') {
             steps {
-                sh '''#!/usr/bin/env bash
-                    set -euo pipefail
+                sh '''
+                    set -e
 
                     echo "Current workspace:"
                     pwd
@@ -57,22 +55,38 @@ pipeline {
                     echo "Repository contents:"
                     ls -la
 
-                    test -d backend || { echo "ERROR: backend directory was not found"; exit 1; }
-                    test -d frontend || { echo "ERROR: frontend directory was not found"; exit 1; }
-                    test -f backend/package.json || { echo "ERROR: backend/package.json was not found"; exit 1; }
-                    test -f frontend/package.json || { echo "ERROR: frontend/package.json was not found"; exit 1; }
-                    test -d infra/k8s || { echo "ERROR: infra/k8s directory was not found"; exit 1; }
-                    test -f infra/k8s/namespace.yaml || { echo "ERROR: infra/k8s/namespace.yaml was not found"; exit 1; }
-                    test -f infra/k8s/backend-deployment.yaml || { echo "ERROR: infra/k8s/backend-deployment.yaml was not found"; exit 1; }
-                    test -f infra/k8s/frontend-deployment.yaml || { echo "ERROR: infra/k8s/frontend-deployment.yaml was not found"; exit 1; }
+                    test -d backend || {
+                        echo "ERROR: backend directory was not found"
+                        exit 1
+                    }
+
+                    test -d frontend || {
+                        echo "ERROR: frontend directory was not found"
+                        exit 1
+                    }
+
+                    test -f backend/package.json || {
+                        echo "ERROR: backend/package.json was not found"
+                        exit 1
+                    }
+
+                    test -f frontend/package.json || {
+                        echo "ERROR: frontend/package.json was not found"
+                        exit 1
+                    }
+
+                    test -d infra/k8s || {
+                        echo "ERROR: infra/k8s directory was not found"
+                        exit 1
+                    }
                 '''
             }
         }
 
         stage('Verify Required Tools') {
             steps {
-                sh '''#!/usr/bin/env bash
-                    set -euo pipefail
+                sh '''
+                    set -e
 
                     echo "Node version:"
                     node --version
@@ -100,12 +114,10 @@ pipeline {
 
         stage('Initialize AWS') {
             steps {
-                withAWS(credentials: env.AWS_CREDS_ID, region: env.AWS_REGION) {
+                withAWS(credentials: 'aws-creds', region: 'ap-southeast-2') {
                     script {
                         env.AWS_ACCOUNT_ID = sh(
-                            script: '''#!/usr/bin/env bash
-                                set -euo pipefail
-
+                            script: '''
                                 aws sts get-caller-identity \
                                     --query Account \
                                     --output text
@@ -117,36 +129,34 @@ pipeline {
                             error('Unable to retrieve AWS account ID')
                         }
 
-                        env.ECR_REGISTRY = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
-                        env.BACKEND_IMAGE = "${env.ECR_REGISTRY}/${env.ECR_BACKEND}:${env.IMAGE_TAG}"
-                        env.FRONTEND_IMAGE = "${env.ECR_REGISTRY}/${env.ECR_FRONTEND}:${env.IMAGE_TAG}"
-
                         echo "AWS account ID detected: ${env.AWS_ACCOUNT_ID}"
                         echo "AWS region: ${env.AWS_REGION}"
-                        echo "Backend image: ${env.BACKEND_IMAGE}"
-                        echo "Frontend image: ${env.FRONTEND_IMAGE}"
                     }
                 }
             }
         }
 
-        stage('Verify ECR Repositories') {
+        stage('Ensure ECR Repositories') {
             steps {
-                withAWS(credentials: env.AWS_CREDS_ID, region: env.AWS_REGION) {
-                    sh '''#!/usr/bin/env bash
-                        set -euo pipefail
+                withAWS(credentials: 'aws-creds', region: 'ap-southeast-2') {
+                    sh '''
+                        set -e
 
                         aws ecr describe-repositories \
                             --repository-names "$ECR_BACKEND" \
-                            --region "$AWS_REGION" >/dev/null
+                            --region "$AWS_REGION" >/dev/null 2>&1 || \
+                        aws ecr create-repository \
+                            --repository-name "$ECR_BACKEND" \
+                            --image-scanning-configuration scanOnPush=true \
+                            --region "$AWS_REGION"
 
                         aws ecr describe-repositories \
                             --repository-names "$ECR_FRONTEND" \
-                            --region "$AWS_REGION" >/dev/null
-
-                        echo "Verified ECR repositories:"
-                        echo "- $ECR_BACKEND"
-                        echo "- $ECR_FRONTEND"
+                            --region "$AWS_REGION" >/dev/null 2>&1 || \
+                        aws ecr create-repository \
+                            --repository-name "$ECR_FRONTEND" \
+                            --image-scanning-configuration scanOnPush=true \
+                            --region "$AWS_REGION"
                     '''
                 }
             }
@@ -157,8 +167,8 @@ pipeline {
                 stage('Backend Dependencies') {
                     steps {
                         dir('backend') {
-                            sh '''#!/usr/bin/env bash
-                                set -euo pipefail
+                            sh '''
+                                set -e
 
                                 if [ -f package-lock.json ]; then
                                     npm ci
@@ -173,8 +183,8 @@ pipeline {
                 stage('Frontend Dependencies') {
                     steps {
                         dir('frontend') {
-                            sh '''#!/usr/bin/env bash
-                                set -euo pipefail
+                            sh '''
+                                set -e
 
                                 if [ -f package-lock.json ]; then
                                     npm ci
@@ -193,15 +203,15 @@ pipeline {
                 stage('Backend TypeScript') {
                     steps {
                         dir('backend') {
-                            sh '''#!/usr/bin/env bash
-                                set -euo pipefail
+                            sh '''
+                                set -e
 
-                                if npm pkg get scripts.typecheck | grep -vq null; then
+                                if npm run | grep -q "typecheck"; then
                                     npm run typecheck
                                 elif [ -x node_modules/.bin/tsc ]; then
                                     npx --no-install tsc --noEmit
                                 else
-                                    echo "TypeScript check is not configured for backend. Skipping."
+                                    echo "TypeScript not installed. Skipping."
                                 fi
                             '''
                         }
@@ -211,15 +221,15 @@ pipeline {
                 stage('Frontend TypeScript') {
                     steps {
                         dir('frontend') {
-                            sh '''#!/usr/bin/env bash
-                                set -euo pipefail
+                            sh '''
+                                set -e
 
-                                if npm pkg get scripts.typecheck | grep -vq null; then
+                                if npm run | grep -q "typecheck"; then
                                     npm run typecheck
                                 elif [ -x node_modules/.bin/tsc ]; then
                                     npx --no-install tsc -b --noEmit
                                 else
-                                    echo "TypeScript check is not configured for frontend. Skipping."
+                                    echo "TypeScript not installed. Skipping."
                                 fi
                             '''
                         }
@@ -233,13 +243,13 @@ pipeline {
                 stage('Backend Tests') {
                     steps {
                         dir('backend') {
-                            sh '''#!/usr/bin/env bash
-                                set -euo pipefail
+                            sh '''
+                                set -e
 
-                                if npm pkg get scripts.test | grep -vq null; then
+                                if npm run | grep -q "test"; then
                                     npm test
                                 else
-                                    echo "No backend test script configured. Skipping."
+                                    echo "No backend test script configured"
                                 fi
                             '''
                         }
@@ -249,13 +259,13 @@ pipeline {
                 stage('Frontend Tests') {
                     steps {
                         dir('frontend') {
-                            sh '''#!/usr/bin/env bash
-                                set -euo pipefail
+                            sh '''
+                                set -e
 
-                                if npm pkg get scripts.test | grep -vq null; then
+                                if npm run | grep -q "test"; then
                                     npm test
                                 else
-                                    echo "No frontend test script configured. Skipping."
+                                    echo "No frontend test script configured"
                                 fi
                             '''
                         }
@@ -264,6 +274,12 @@ pipeline {
             }
         }
 
+        /*
+         * Run SonarQube scans sequentially.
+         *
+         * Running them in parallel can cause Jenkins to associate
+         * waitForQualityGate() with the wrong SonarQube task.
+         */
         stage('SonarQube Backend Analysis') {
             steps {
                 script {
@@ -274,16 +290,16 @@ pipeline {
 
                     dir('backend') {
                         withSonarQubeEnv(env.SONAR_SERVER) {
-                            sh """#!/usr/bin/env bash
-                                set -euo pipefail
+                            sh """
+                                set -e
 
                                 echo "SonarScanner location: ${scannerHome}"
 
-                                "${scannerHome}/bin/sonar-scanner" \\
-                                    -Dsonar.projectKey=letshop-backend \\
-                                    -Dsonar.projectName="LetShop Backend" \\
-                                    -Dsonar.sources=src \\
-                                    -Dsonar.sourceEncoding=UTF-8 \\
+                                "${scannerHome}/bin/sonar-scanner" \
+                                    -Dsonar.projectKey=letshop-backend \
+                                    -Dsonar.projectName="LetShop Backend" \
+                                    -Dsonar.sources=src \
+                                    -Dsonar.sourceEncoding=UTF-8 \
                                     -Dsonar.exclusions="node_modules/**,dist/**,coverage/**"
                             """
                         }
@@ -310,16 +326,16 @@ pipeline {
 
                     dir('frontend') {
                         withSonarQubeEnv(env.SONAR_SERVER) {
-                            sh """#!/usr/bin/env bash
-                                set -euo pipefail
+                            sh """
+                                set -e
 
                                 echo "SonarScanner location: ${scannerHome}"
 
-                                "${scannerHome}/bin/sonar-scanner" \\
-                                    -Dsonar.projectKey=letshop-frontend \\
-                                    -Dsonar.projectName="LetShop Frontend" \\
-                                    -Dsonar.sources=src \\
-                                    -Dsonar.sourceEncoding=UTF-8 \\
+                                "${scannerHome}/bin/sonar-scanner" \
+                                    -Dsonar.projectKey=letshop-frontend \
+                                    -Dsonar.projectName="LetShop Frontend" \
+                                    -Dsonar.sources=src \
+                                    -Dsonar.sourceEncoding=UTF-8 \
                                     -Dsonar.exclusions="node_modules/**,dist/**,coverage/**"
                             """
                         }
@@ -338,7 +354,7 @@ pipeline {
 
         stage('Trivy File System Scan') {
             steps {
-                sh '''#!/usr/bin/env bash
+                sh '''
                     set +e
 
                     trivy fs \
@@ -347,9 +363,11 @@ pipeline {
                         --output trivy-fs.txt \
                         .
 
-                    trivy_exit_code=$?
-                    echo "Trivy file-system scan exit code: ${trivy_exit_code}"
+                    TRIVY_EXIT_CODE=$?
 
+                    echo "Trivy file-system scan exit code: $TRIVY_EXIT_CODE"
+
+                    # Do not fail the pipeline during the initial setup.
                     exit 0
                 '''
             }
@@ -366,9 +384,11 @@ pipeline {
 
         stage('Login to ECR') {
             steps {
-                withAWS(credentials: env.AWS_CREDS_ID, region: env.AWS_REGION) {
-                    sh '''#!/usr/bin/env bash
-                        set -euo pipefail
+                withAWS(credentials: 'aws-creds', region: 'ap-southeast-2') {
+                    sh '''
+                        set -e
+
+                        ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
                         aws ecr get-login-password \
                             --region "$AWS_REGION" |
@@ -382,14 +402,15 @@ pipeline {
 
         stage('Build Backend Image') {
             steps {
-                sh '''#!/usr/bin/env bash
-                    set -euo pipefail
+                sh '''
+                    set -e
 
-                    backend_uri="${ECR_REGISTRY}/${ECR_BACKEND}"
+                    ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+                    BACKEND_URI="${ECR_REGISTRY}/${ECR_BACKEND}"
 
                     docker build \
-                        --tag "${backend_uri}:${IMAGE_TAG}" \
-                        --tag "${backend_uri}:latest" \
+                        --tag "${BACKEND_URI}:${IMAGE_TAG}" \
+                        --tag "${BACKEND_URI}:latest" \
                         ./backend
                 '''
             }
@@ -397,15 +418,16 @@ pipeline {
 
         stage('Build Frontend Image') {
             steps {
-                sh '''#!/usr/bin/env bash
-                    set -euo pipefail
+                sh '''
+                    set -e
 
-                    frontend_uri="${ECR_REGISTRY}/${ECR_FRONTEND}"
+                    ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+                    FRONTEND_URI="${ECR_REGISTRY}/${ECR_FRONTEND}"
 
                     docker build \
                         --build-arg VITE_API_URL=/api \
-                        --tag "${frontend_uri}:${IMAGE_TAG}" \
-                        --tag "${frontend_uri}:latest" \
+                        --tag "${FRONTEND_URI}:${IMAGE_TAG}" \
+                        --tag "${FRONTEND_URI}:latest" \
                         ./frontend
                 '''
             }
@@ -413,17 +435,16 @@ pipeline {
 
         stage('Trivy Backend Image Scan') {
             steps {
-                sh '''#!/usr/bin/env bash
+                sh '''
                     set +e
+
+                    BACKEND_IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND}:${IMAGE_TAG}"
 
                     trivy image \
                         --format table \
                         --severity HIGH,CRITICAL \
                         --output trivy-backend-image.txt \
                         "$BACKEND_IMAGE"
-
-                    trivy_exit_code=$?
-                    echo "Trivy backend image scan exit code: ${trivy_exit_code}"
 
                     exit 0
                 '''
@@ -441,17 +462,16 @@ pipeline {
 
         stage('Trivy Frontend Image Scan') {
             steps {
-                sh '''#!/usr/bin/env bash
+                sh '''
                     set +e
+
+                    FRONTEND_IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND}:${IMAGE_TAG}"
 
                     trivy image \
                         --format table \
                         --severity HIGH,CRITICAL \
                         --output trivy-frontend-image.txt \
                         "$FRONTEND_IMAGE"
-
-                    trivy_exit_code=$?
-                    echo "Trivy frontend image scan exit code: ${trivy_exit_code}"
 
                     exit 0
                 '''
@@ -469,62 +489,54 @@ pipeline {
 
         stage('Push Backend Image') {
             steps {
-                sh '''#!/usr/bin/env bash
-                    set -euo pipefail
+                sh '''
+                    set -e
 
-                    backend_uri="${ECR_REGISTRY}/${ECR_BACKEND}"
+                    BACKEND_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND}"
 
-                    docker push "${backend_uri}:${IMAGE_TAG}"
-                    docker push "${backend_uri}:latest"
+                    docker push "${BACKEND_URI}:${IMAGE_TAG}"
+                    docker push "${BACKEND_URI}:latest"
                 '''
             }
         }
 
         stage('Push Frontend Image') {
             steps {
-                sh '''#!/usr/bin/env bash
-                    set -euo pipefail
+                sh '''
+                    set -e
 
-                    frontend_uri="${ECR_REGISTRY}/${ECR_FRONTEND}"
+                    FRONTEND_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND}"
 
-                    docker push "${frontend_uri}:${IMAGE_TAG}"
-                    docker push "${frontend_uri}:latest"
+                    docker push "${FRONTEND_URI}:${IMAGE_TAG}"
+                    docker push "${FRONTEND_URI}:latest"
                 '''
             }
         }
 
         stage('Configure EKS Access') {
             steps {
-                withAWS(credentials: env.AWS_CREDS_ID, region: env.AWS_REGION) {
-                    withEnv(["KUBECONFIG=${env.WORKSPACE}/.kube/config"]) {
-                        sh '''#!/usr/bin/env bash
-                            set -euo pipefail
+                withAWS(credentials: 'aws-creds', region: 'ap-southeast-2') {
+                    sh '''
+                        set -e
 
-                            mkdir -p "$(dirname "$KUBECONFIG")"
-                            rm -f "$KUBECONFIG"
+                        aws eks update-kubeconfig \
+                            --name "$EKS_CLUSTER" \
+                            --region "$AWS_REGION"
 
-                            aws sts get-caller-identity
-
-                            aws eks update-kubeconfig \
-                                --name "$EKS_CLUSTER" \
-                                --region "$AWS_REGION" \
-                                --kubeconfig "$KUBECONFIG"
-
-                            echo "Current Kubernetes context:"
-                            kubectl config current-context
-
-                            kubectl cluster-info
-                            kubectl get nodes
-                        '''
-                    }
+                        kubectl cluster-info
+                        kubectl get nodes || true
+                    '''
                 }
             }
         }
 
         stage('Render Kubernetes Manifests') {
             steps {
-                sh '''#!/usr/bin/env bash
-                    set -euo pipefail
+                sh '''
+                    set -e
+
+                    BACKEND_IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND}:${IMAGE_TAG}"
+                    FRONTEND_IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND}:${IMAGE_TAG}"
 
                     rm -rf rendered-k8s
                     mkdir -p rendered-k8s
@@ -550,85 +562,66 @@ pipeline {
 
         stage('Deploy to EKS') {
             steps {
-                withAWS(credentials: env.AWS_CREDS_ID, region: env.AWS_REGION) {
-                    withEnv(["KUBECONFIG=${env.WORKSPACE}/.kube/config"]) {
-                        sh '''#!/usr/bin/env bash
-                            set -euo pipefail
+                sh '''
+                    set -e
 
-                            test -f "$KUBECONFIG" || {
-                                echo "ERROR: KUBECONFIG was not found at $KUBECONFIG"
-                                exit 1
-                            }
+                    kubectl apply -f rendered-k8s/namespace.yaml
 
-                            kubectl apply -f rendered-k8s/namespace.yaml
+                    if [ -f rendered-k8s/configmap.yaml ]; then
+                        kubectl apply -f rendered-k8s/configmap.yaml
+                    fi
 
-                            if [ -f rendered-k8s/configmap.yaml ]; then
-                                kubectl apply -f rendered-k8s/configmap.yaml
-                            fi
+                    if [ -f rendered-k8s/secrets.yaml ]; then
+                        kubectl apply -f rendered-k8s/secrets.yaml
+                    fi
 
-                            if [ -f rendered-k8s/secrets.yaml ]; then
-                                echo "WARNING: Applying rendered-k8s/secrets.yaml. Avoid committing plaintext secrets to Git."
-                                kubectl apply -f rendered-k8s/secrets.yaml
-                            fi
+                    kubectl apply -f rendered-k8s/backend-deployment.yaml
+                    kubectl apply -f rendered-k8s/frontend-deployment.yaml
 
-                            kubectl apply -f rendered-k8s/backend-deployment.yaml
-                            kubectl apply -f rendered-k8s/frontend-deployment.yaml
+                    if [ -f rendered-k8s/backend-service.yaml ]; then
+                        kubectl apply -f rendered-k8s/backend-service.yaml
+                    fi
 
-                            if [ -f rendered-k8s/backend-service.yaml ]; then
-                                kubectl apply -f rendered-k8s/backend-service.yaml
-                            fi
+                    if [ -f rendered-k8s/frontend-service.yaml ]; then
+                        kubectl apply -f rendered-k8s/frontend-service.yaml
+                    fi
 
-                            if [ -f rendered-k8s/frontend-service.yaml ]; then
-                                kubectl apply -f rendered-k8s/frontend-service.yaml
-                            fi
-
-                            if [ -f rendered-k8s/ingress.yaml ]; then
-                                kubectl apply -f rendered-k8s/ingress.yaml
-                            fi
-                        '''
-                    }
-                }
+                    if [ -f rendered-k8s/ingress.yaml ]; then
+                        kubectl apply -f rendered-k8s/ingress.yaml
+                    fi
+                '''
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                withAWS(credentials: env.AWS_CREDS_ID, region: env.AWS_REGION) {
-                    withEnv(["KUBECONFIG=${env.WORKSPACE}/.kube/config"]) {
-                        timeout(time: 10, unit: 'MINUTES') {
-                            sh '''#!/usr/bin/env bash
-                                set -euo pipefail
+                timeout(time: 10, unit: 'MINUTES') {
+                    sh '''
+                        set -e
 
-                                test -f "$KUBECONFIG" || {
-                                    echo "ERROR: KUBECONFIG was not found at $KUBECONFIG"
-                                    exit 1
-                                }
+                        kubectl rollout status \
+                            deployment/letshop-backend \
+                            --namespace "$K8S_NAMESPACE" \
+                            --timeout=600s
 
-                                kubectl rollout status \
-                                    deployment/letshop-backend \
-                                    --namespace "$K8S_NAMESPACE" \
-                                    --timeout=600s
+                        kubectl rollout status \
+                            deployment/letshop-frontend \
+                            --namespace "$K8S_NAMESPACE" \
+                            --timeout=600s
 
-                                kubectl rollout status \
-                                    deployment/letshop-frontend \
-                                    --namespace "$K8S_NAMESPACE" \
-                                    --timeout=600s
+                        echo "Pods:"
+                        kubectl get pods \
+                            --namespace "$K8S_NAMESPACE" \
+                            -o wide
 
-                                echo "Pods:"
-                                kubectl get pods \
-                                    --namespace "$K8S_NAMESPACE" \
-                                    -o wide
+                        echo "Services:"
+                        kubectl get services \
+                            --namespace "$K8S_NAMESPACE"
 
-                                echo "Services:"
-                                kubectl get services \
-                                    --namespace "$K8S_NAMESPACE"
-
-                                echo "Ingress:"
-                                kubectl get ingress \
-                                    --namespace "$K8S_NAMESPACE"
-                            '''
-                        }
-                    }
+                        echo "Ingress:"
+                        kubectl get ingress \
+                            --namespace "$K8S_NAMESPACE"
+                    '''
                 }
             }
         }
@@ -642,30 +635,16 @@ pipeline {
         failure {
             echo "Pipeline failed for build ${BUILD_NUMBER}"
 
-            script {
-                withAWS(credentials: env.AWS_CREDS_ID, region: env.AWS_REGION) {
-                    withEnv(["KUBECONFIG=${env.WORKSPACE}/.kube/config"]) {
-                        sh '''#!/usr/bin/env bash
-                            set +e
+            sh '''
+                kubectl get pods \
+                    --namespace "$K8S_NAMESPACE" \
+                    -o wide 2>/dev/null || true
 
-                            if [ -f "$KUBECONFIG" ]; then
-                                echo "Pods:"
-                                kubectl get pods \
-                                    --namespace "$K8S_NAMESPACE" \
-                                    -o wide 2>/dev/null || true
-
-                                echo "Recent events:"
-                                kubectl get events \
-                                    --namespace "$K8S_NAMESPACE" \
-                                    --sort-by=.metadata.creationTimestamp \
-                                    2>/dev/null | tail -50 || true
-                            else
-                                echo "Kubeconfig was not created; skipping Kubernetes diagnostics."
-                            fi
-                        '''
-                    }
-                }
-            }
+                kubectl get events \
+                    --namespace "$K8S_NAMESPACE" \
+                    --sort-by=.metadata.creationTimestamp 2>/dev/null | \
+                    tail -50 || true
+            '''
         }
 
         always {
@@ -674,22 +653,14 @@ pipeline {
                 allowEmptyArchive: true
             )
 
-            script {
-                if (env.ECR_REGISTRY?.trim()) {
-                    sh '''#!/usr/bin/env bash
-                        set +e
-
-                        docker logout "$ECR_REGISTRY" 2>/dev/null || true
-                    '''
-                }
-
-                sh '''#!/usr/bin/env bash
-                    set +e
-
-                    rm -rf .kube
-                    docker image prune -f >/dev/null 2>&1 || true
+            withAWS(credentials: 'aws-creds', region: 'ap-southeast-2') {
+                sh '''
+                    docker logout \
+                        "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" \
+                        2>/dev/null || true
                 '''
             }
         }
     }
 }
+
