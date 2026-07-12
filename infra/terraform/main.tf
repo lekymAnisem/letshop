@@ -175,6 +175,10 @@ resource "aws_eks_cluster" "main" {
   role_arn = aws_iam_role.eks[0].arn
   version  = var.eks_version
 
+  access_config {
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
+  }
   vpc_config {
     subnet_ids              = aws_subnet.public[*].id
     endpoint_private_access = false
@@ -258,20 +262,37 @@ resource "aws_iam_role_policy_attachment" "eks_ecr" {
 }
 
 resource "aws_eks_access_entry" "cicd" {
-  count         = var.eks_enabled && var.eks_admin_role_arn != "" ? 1 : 0
+  count = (
+    var.eks_enabled &&
+    var.eks_admin_role_arn != ""
+  ) ? 1 : 0
+
   cluster_name  = aws_eks_cluster.main[0].name
   principal_arn = var.eks_admin_role_arn
   type          = "STANDARD"
+
+  depends_on = [
+    aws_eks_cluster.main
+  ]
 }
 
 resource "aws_eks_access_policy_association" "cicd_admin" {
-  count         = var.eks_enabled && var.eks_admin_role_arn != "" ? 1 : 0
+  count = (
+    var.eks_enabled &&
+    var.eks_admin_role_arn != ""
+  ) ? 1 : 0
+
   cluster_name  = aws_eks_cluster.main[0].name
   principal_arn = var.eks_admin_role_arn
   policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
   access_scope {
     type = "cluster"
   }
+
+  depends_on = [
+    aws_eks_access_entry.cicd
+  ]
 }
 
 resource "aws_eks_node_group" "main" {
@@ -290,6 +311,12 @@ resource "aws_eks_node_group" "main" {
     desired_size = var.eks_node_desired_size
     max_size     = var.eks_node_max_size
   }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_worker_node,
+    aws_iam_role_policy_attachment.eks_cni,
+    aws_iam_role_policy_attachment.eks_ecr
+  ]
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-eks-nodes"
