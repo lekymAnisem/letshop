@@ -1,7 +1,5 @@
 pipeline {
-    agent {
-        label 'docker-aws-agent'
-    }
+    agent any
 
     options {
         skipDefaultCheckout(true)
